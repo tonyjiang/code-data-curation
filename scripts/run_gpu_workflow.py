@@ -18,6 +18,7 @@ def main() -> int:
     parser.add_argument("--output", default=f"data/curated-real-{datetime.now(UTC):%Y%m%dT%H%M%S%fZ}")
     parser.add_argument("--codetrace-documents", type=int, default=1000)
     parser.add_argument("--evaluation", default="")
+    parser.add_argument("--post-generation-decontamination", action="store_true")
     args = parser.parse_args()
     if Path(args.output).exists():
         parser.error("Output already exists; choose a new directory")
@@ -28,6 +29,8 @@ def main() -> int:
     env.setdefault("CODE_DATA_CODEGEMMA_ENDPOINT", "http://127.0.0.1:8002/v1")
     env["PYTHONUNBUFFERED"] = "1"
     command = [str(Path(sys.executable).parent / "pyflyte"), "run", "code_data_curation/workflow.py", "code_data_curation_workflow", "--input_path", args.input, "--output_dir", args.output, "--mode", "real", "--generation_retries", "2", "--generation_concurrency", "2", "--codetrace_documents_per_model", str(args.codetrace_documents), "--evaluation_path", args.evaluation]
+    if args.post_generation_decontamination:
+        command.append("--post_generation_decontamination")
     status = {"output": args.output, "started_at": datetime.now(UTC).isoformat(), "state": "running"}
     with status_path.open("x") as handle:
         json.dump(status, handle)

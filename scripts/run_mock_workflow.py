@@ -8,7 +8,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from code_data_curation.pipeline import (
-    cross_dataset_deduplicate,
     decontaminate,
     exact_deduplicate,
     export_dataset,
@@ -26,6 +25,7 @@ def main() -> int:
     parser.add_argument("--input", default="data/raw/stack-v3-sample.jsonl")
     parser.add_argument("--output", default="data/curated-mock")
     parser.add_argument("--evaluation", default=None)
+    parser.add_argument("--post-generation-decontamination", action="store_true")
     parser.add_argument("--codetrace-documents-per-model", type=int, default=1000)
     args = parser.parse_args()
     source = load_jsonl(args.input)
@@ -38,8 +38,9 @@ def main() -> int:
         train, codetrace_limit=args.codetrace_documents_per_model
     )
     valid, invalid = validate_generated(synthetic)
-    valid, contaminated = decontaminate(valid, eval_documents)
-    valid, cross_branch_duplicates = cross_dataset_deduplicate(valid, train)
+    contaminated = []
+    if args.post_generation_decontamination:
+        valid, contaminated = decontaminate(valid, eval_documents + validation)
     manifest = export_dataset(
         train, valid, args.output,
         codetrace_target_per_model=args.codetrace_documents_per_model,
@@ -51,7 +52,8 @@ def main() -> int:
         "validation_documents": len(validation),
         "synthetic_invalid": len(invalid),
         "synthetic_contaminated": len(contaminated),
-        "cross_branch_duplicates": len(cross_branch_duplicates),
+        "post_generation_deduplication": False,
+        "post_generation_decontamination": args.post_generation_decontamination,
         "mode": "mock",
     })
     Path(args.output, "manifest.json").write_text(__import__("json").dumps(manifest, indent=2) + "\n")

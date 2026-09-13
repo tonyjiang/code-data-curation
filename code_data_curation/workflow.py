@@ -7,17 +7,14 @@ from pathlib import Path
 from flytekit import task, workflow
 
 from .pipeline import (
-    cross_dataset_deduplicate,
     decontaminate,
     exact_deduplicate,
     export_dataset,
-    generate_one_branch,
     load_jsonl,
     near_deduplicate,
     quality_filter,
     repository_split,
     select_branch_parents,
-    validate_generated,
 )
 from .generation import generate_batch
 
@@ -78,17 +75,13 @@ def synthesize_branch(
     generation_retries: int, generation_concurrency: int, codetrace_limit: int,
     output_dir: str = "",
 ) -> list[dict]:
-    if mode == "mock":
-        return generate_one_branch(
-            documents, model, method, mock=True, codetrace_limit=codetrace_limit
-        )
-    if mode != "real":
+    if mode not in {"mock", "real"}:
         raise ValueError("mode must be 'mock' or 'real'")
     parents = select_branch_parents(
         documents, model, method, codetrace_limit=codetrace_limit
     )
     generated, failures = generate_batch(
-        parents, model, method, mock=False,
+        parents, model, method, mock=mode == "mock",
         retries=generation_retries, concurrency=generation_concurrency,
     )
     if output_dir:
@@ -105,12 +98,6 @@ def synthesize_branch(
     return generated
 
 
-@task(cache=False)
-def validate(synthetic: list[dict]) -> list[dict]:
-    accepted, _ = validate_generated(synthetic)
-    return accepted
-
-
 @task(cache=True, cache_version="v2")
 def combine_branches(
     branch_1: list[dict], branch_2: list[dict], branch_3: list[dict],
@@ -125,19 +112,21 @@ def export(
     organic: list[dict], synthetic: list[dict], evaluation: list[dict],
     output_dir: str, codetrace_target_per_model: int,
     validation: list[dict] = [], mode: str = "mock",
+    post_generation_decontamination: bool = False,
 ) -> dict:
-    clean_synthetic, contaminated = decontaminate(synthetic, evaluation + validation)
-    clean_synthetic, duplicates = cross_dataset_deduplicate(clean_synthetic, organic + validation)
-    clean_synthetic = near_deduplicate(clean_synthetic)
+    clean_synthetic, contaminated = synthetic, []
+    if post_generation_decontamination:
+        clean_synthetic, contaminated = decontaminate(synthetic, evaluation + validation)
     manifest = export_dataset(
         organic, clean_synthetic, output_dir,
         codetrace_target_per_model=codetrace_target_per_model,
     )
-    write_audit(output_dir, "export-rejections", contaminated + duplicates)
+    write_audit(output_dir, "export-rejections", contaminated)
     with (Path(output_dir) / "validation.jsonl").open("x", encoding="utf-8") as handle:
         for row in validation:
             handle.write(json.dumps(row) + "\n")
     manifest.update(mode=mode, validation_documents=len(validation), evaluation_documents=len(evaluation), evaluation_configured=bool(evaluation), status="completed_with_shortfalls" if manifest["synthetic_shortfall_documents"] else "completed")
+    manifest.update(post_generation_deduplication=False, post_generation_decontamination=post_generation_decontamination, synthetic_contaminated=len(contaminated))
     (Path(output_dir) / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
@@ -151,18 +140,19 @@ def code_data_curation_workflow(
     generation_concurrency: int = 2,
     codetrace_documents_per_model: int = 1000,
     evaluation_path: str = "",
+    post_generation_decontamination: bool = False,
 ) -> dict:
     evaluation = load_evaluation(evaluation_path)
     organic = drop_evaluation_matches(clean(ingest(input_path, output_dir, mode), output_dir), evaluation)
     train, _validation = split(organic)
     generated = combine_branches(
-        validate(synthesize_branch(train, "qwen_coder", "swallowcode", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir)),
-        validate(synthesize_branch(train, "qwen_coder", "codedev", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir)),
-        validate(synthesize_branch(train, "qwen_coder", "codeqa", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir)),
-        validate(synthesize_branch(train, "codegemma", "swallowcode", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir)),
-        validate(synthesize_branch(train, "codegemma", "codedev", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir)),
-        validate(synthesize_branch(train, "codegemma", "codeqa", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir)),
-        validate(synthesize_branch(train, "qwen_coder", "codetrace", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir)),
-        validate(synthesize_branch(train, "codegemma", "codetrace", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir)),
+        synthesize_branch(train, "qwen_coder", "swallowcode", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(train, "qwen_coder", "codedev", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(train, "qwen_coder", "codeqa", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(train, "codegemma", "swallowcode", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(train, "codegemma", "codedev", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(train, "codegemma", "codeqa", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(train, "qwen_coder", "codetrace", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(train, "codegemma", "codetrace", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
     )
-    return export(train, generated, evaluation, output_dir, codetrace_documents_per_model, _validation, mode)
+    return export(train, generated, evaluation, output_dir, codetrace_documents_per_model, _validation, mode, post_generation_decontamination)

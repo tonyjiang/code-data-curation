@@ -56,7 +56,8 @@
     .bypass h2 { margin: 8px 0; font-size: 20px; } .bypass p { margin: 0; color: var(--muted); }
     .count { margin-top: 20px; font-size: 28px; font-weight: 850; color: var(--green); }
     .count small { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
-    .validation-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 14px; }
+    .validation-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .generation-loop { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
     .check { padding: 16px; border-left: 4px solid var(--purple); border-radius: 8px; background: #1d1830; }
     .check h3 { margin: 0 0 5px; font-size: 15px; } .check p { margin: 0; color: var(--muted); font-size: 12px; }
     .shortfall { color: var(--red); font-weight: 700; }
@@ -99,7 +100,8 @@
         <div class="stage-label"><span class="step-number">3</span> Fork cleaned organic training set</div>
         <div class="fork">
           <div class="generation-shell">
-            <div class="generation-head"><h2>Eight independent generation branches</h2><span>bounded retries · concurrency = 2</span></div>
+            <div class="generation-head"><h2>Eight branches: generate + validate</h2><span>bounded retries · concurrency = 2</span></div>
+            <p class="generation-loop">Each branch: generate → validate → accept or retry. Parse Python where supported; CodeTrace also checks execution and repeatability. Syntax, execution, and correctness are recorded separately; unchecked syntax remains unknown.</p>
             <div class="branches">
               <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">0.25 × N</span><h3>SwallowCode rewrite</h3><p>Self-contained, idiomatic code with behavior preserved.</p></article>
               <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">0.25 × N</span><h3>CodeDev</h3><p>Realistic feature, bug-fix, or behavior-change task with a solution.</p></article>
@@ -115,12 +117,8 @@
         </div>
       </div>
       <div class="stage">
-        <div class="stage-label"><span class="step-number">4</span> Validate synthetic output</div>
-        <div class="validation-grid">
-          <article class="check"><h3>Syntax and execution signals</h3><p>Language-aware checks record syntax validity separately from verified correctness and execution status.</p></article>
-          <article class="check"><h3>Deduplicate again</h3><p>Remove duplicates within branches, across branches, and against the organic corpus.</p></article>
-          <article class="check"><h3>Repeat decontamination</h3><p>Reject evaluation matches; retry and backfill within bounds. <span class="shortfall">Report remaining shortfalls.</span></p></article>
-        </div>
+        <div class="stage-label"><span class="step-number">4</span> Optional synthetic-data audit</div>
+        <article class="card split" style="border-style: dashed;"><h2>Post-generation decontamination</h2><p>When enabled, reject synthetic matches against configured evaluation data and held-out validation; record removals and shortfalls. When disabled, pass accepted synthetic documents directly to merging.</p><div class="meta"><span class="pill">Optional · off by default</span></div></article>
       </div>
       <div class="stage">
         <div class="stage-label"><span class="step-number">5</span> Merge and publish</div>

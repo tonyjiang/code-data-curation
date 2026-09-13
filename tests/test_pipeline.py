@@ -1,4 +1,5 @@
 import json
+import pytest
 
 from code_data_curation.pipeline import (
     allocate_branch_quotas,
@@ -33,7 +34,8 @@ def test_decontamination_and_repository_split():
     assert {d["repo_id"] for d in a}.isdisjoint({d["repo_id"] for d in b})
 
 
-def test_export_decontaminates_eval_and_dedups_organic(tmp_path):
+@pytest.mark.parametrize("audit", [False, True])
+def test_export_retains_duplicates_and_optionally_decontaminates(tmp_path, audit):
     organic = [doc(1, content="print(1)")]
     evaluation = [doc("eval", content="eval_only()")]
     synthetic = [
@@ -43,10 +45,13 @@ def test_export_decontaminates_eval_and_dedups_organic(tmp_path):
     ]
     kept = workflow.drop_evaluation_matches.task_function(organic + [doc(2, content="eval_only()")], evaluation)
     assert {d["document_id"] for d in kept} == {"1"}
-    workflow.export.task_function(organic, synthetic, evaluation, str(tmp_path), 1000)
+    manifest = workflow.export.task_function(organic, synthetic, evaluation, str(tmp_path), 1000, post_generation_decontamination=audit)
     written = [json.loads(line) for line in (tmp_path / "train-00000.jsonl").read_text().splitlines()]
     ids = {d["document_id"] for d in written}
-    assert ids == {"1", "keep"}
+    assert ids == ({"1", "copy", "keep"} if audit else {"1", "copy", "leak", "keep"})
+    assert manifest["post_generation_decontamination"] is audit
+    assert manifest["post_generation_deduplication"] is False
+    assert manifest["synthetic_contaminated"] == int(audit)
 
 
 def test_eight_branches_with_paired_python_codetrace_pilot():

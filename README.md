@@ -129,7 +129,14 @@ uv run python scripts/run_mock_workflow.py \
 ```
 
 Pass `--evaluation` / `--evaluation_path` with a JSONL of held-out eval documents
-to drop matching organic and synthetic records. Empty or omitted means no eval set.
+to drop matching organic records before generation. Empty or omitted means no eval set.
+
+After generation, accepted documents are merged without exact or near deduplication.
+An optional second decontamination pass is off by default. Enable
+`--post_generation_decontamination` in `pyflyte run`, or
+`--post-generation-decontamination` in either Python runner, to reject synthetic
+matches against the evaluation set and reserved validation documents. The manifest
+records whether this pass ran and how many matches it removed.
 
 The same graph can run through Flyte’s local runner:
 
