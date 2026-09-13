@@ -1,0 +1,12 @@
+{
+  "languages": ["Python", "JavaScript", "TypeScript", "Java", "C", "C++", "C#", "Go", "Rust", "Ruby", "PHP", "Swift", "Kotlin", "Dart", "Scala"],
+  "min_documents_per_language": 10,
+  "validation_fraction": 0.2,
+  "near_duplicate_jaccard": 0.92,
+  "max_generation_retries": 2,
+  "max_generation_concurrency": 2,
+  "codetrace_documents_per_model": 1000,
+  "prompt_version": "v1",
+  "evaluation_path": null,
+  "mode": "mock"
+}

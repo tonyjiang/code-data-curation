@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code Data Curation Workflow</title>
+  <style>
+    :root {
+      --ink: #edf2ff; --muted: #9aa8bf; --line: #334155;
+      --surface: #101725; --canvas: #070b13; --blue: #6da8ff;
+      --blue-soft: #10233e; --purple: #ad8cff; --purple-soft: #241b3d;
+      --qwen: #67ddec; --qwen-soft: #102c34; --gemma: #f4b76b;
+      --gemma-soft: #342413; --green: #68d99a; --green-soft: #122c20;
+      --red: #fb7f91; --shadow: 0 24px 70px rgba(0,0,0,.38);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: radial-gradient(circle at 50% -10%, #17233a 0, var(--canvas) 42%); font: 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width: min(1280px, calc(100% - 32px)); margin: 32px auto 56px; }
+    header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 24px; }
+    h1 { margin: 0 0 6px; font-size: clamp(24px,3vw,38px); letter-spacing: -.035em; }
+    header p { margin: 0; color: var(--muted); max-width: 720px; }
+    .mode { flex: 0 0 auto; padding: 8px 12px; border: 1px solid #42516a; border-radius: 999px; background: #111a2a; color: #bdc8da; font-weight: 700; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+    .board { background: var(--surface); border: 1px solid #263247; border-radius: 20px; box-shadow: var(--shadow); overflow: hidden; }
+    .stage { position: relative; padding: 26px 30px; border-bottom: 1px solid #253044; }
+    .stage:last-child { border-bottom: 0; }
+    .stage + .stage::before { content: "→"; position: absolute; top: -24px; left: 50%; transform: translateX(-50%) rotate(90deg); color: #7f8ba1; font-size: 44px; font-weight: 800; line-height: 1; }
+    .stage-label { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .step-number { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 8px; background: #263247; color: #d7dfed; }
+    .row { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+    .row.single { grid-template-columns: 1fr; }
+    .card { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: #151e2d; }
+    .card h2, .card h3 { margin: 0 0 7px; font-size: 17px; letter-spacing: -.015em; }
+    .card p { margin: 0; color: var(--muted); }
+    .card.source { border-color: #315b91; background: var(--blue-soft); }
+    .card.process { background: #151e2d; }
+    .card.split { border-color: #604a91; background: var(--purple-soft); }
+    .card.output { border-color: #34684a; background: var(--green-soft); }
+    .meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+    .pill { padding: 4px 8px; border-radius: 999px; background: rgba(7,11,19,.45); border: 1px solid #3a4961; color: #c0cada; font-size: 11px; font-weight: 700; }
+    .fork { display: grid; grid-template-columns: minmax(0,3fr) minmax(230px,1fr); gap: 18px; align-items: stretch; }
+    .generation-shell { padding: 20px; border: 1px solid #37455c; border-radius: 16px; background: #0c1320; }
+    .generation-head { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; margin-bottom: 14px; }
+    .generation-head h2 { margin: 0; font-size: 19px; }
+    .generation-head span { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .branches { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+    .branch { position: relative; min-height: 132px; padding: 16px; border: 1px solid; border-radius: 13px; overflow: hidden; }
+    .branch.qwen { border-color: #28616b; background: var(--qwen-soft); }
+    .branch.gemma { border-color: #73502b; background: var(--gemma-soft); }
+    .model-name { display: block; min-height: 32px; margin-bottom: 8px; padding-right: 98px; font-size: 11px; font-weight: 800; letter-spacing: .06em; line-height: 1.35; text-transform: uppercase; }
+    .qwen .model-name { color: var(--qwen); } .gemma .model-name { color: var(--gemma); }
+    .branch h3 { margin: 0 0 6px; font-size: 16px; }
+    .branch p { margin: 0; color: var(--muted); font-size: 12px; }
+    .quota { position: absolute; top: 12px; right: 12px; padding: 4px 7px; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; background: rgba(5,9,16,.45); font-size: 11px; font-weight: 800; }
+    .bypass { display: flex; flex-direction: column; justify-content: center; border: 1px solid #34684a; border-radius: 16px; padding: 22px; background: var(--green-soft); }
+    .bypass .route { color: var(--green); font-size: 12px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .bypass h2 { margin: 8px 0; font-size: 20px; } .bypass p { margin: 0; color: var(--muted); }
+    .count { margin-top: 20px; font-size: 28px; font-weight: 850; color: var(--green); }
+    .count small { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .validation-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 14px; }
+    .check { padding: 16px; border-left: 4px solid var(--purple); border-radius: 8px; background: #1d1830; }
+    .check h3 { margin: 0 0 5px; font-size: 15px; } .check p { margin: 0; color: var(--muted); font-size: 12px; }
+    .shortfall { color: var(--red); font-weight: 700; }
+    .finish { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 14px; align-items: center; }
+    .finish .arrow { color: #7f8ba1; font-size: 24px; font-weight: 800; }
+    .metric { display: block; margin-top: 10px; font-size: 22px; font-weight: 850; }
+    .metric.blue { color: var(--blue); } .metric.purple { color: var(--purple); } .metric.green { color: var(--green); }
+    .footer { display: flex; justify-content: space-between; gap: 20px; padding: 16px 30px; background: #080d16; color: #aeb9ca; font-size: 12px; }
+    .footer strong { color: #fff; }
+    @media (max-width: 900px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .row, .branches, .validation-grid, .fork, .finish { grid-template-columns: 1fr; }
+      .finish .arrow { transform: rotate(90deg); text-align: center; }
+      .stage { padding: 24px 18px; } .footer { flex-direction: column; padding: 16px 18px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div><h1>Code data curation for LLM pretraining</h1><p>A Flyte workflow with realistic filtering, repository isolation, eight synthetic-generation branches, validation, lineage, and versioned export.</p></div>
+      <div class="mode">Mock locally · endpoints for real inference</div>
+    </header>
+    <section class="board" aria-label="Code data curation workflow">
+      <div class="stage">
+        <div class="stage-label"><span class="step-number">1</span> Acquire and preserve</div>
+        <div class="row single">
+          <article class="card source"><h2>Ingest The Stack v3 sample</h2><p>Stream a bounded, language-stratified corpus and preserve source, repository, commit, license, language, file, content, and document identifiers for lineage.</p><div class="meta"><span class="pill">15 languages</span><span class="pill">revision pinned</span><span class="pill">repository-aware</span><span class="pill">license retained</span></div></article>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-label"><span class="step-number">2</span> Clean before synthesis</div>
+        <div class="row">
+          <article class="card process"><h2>Deduplicate</h2><p>Exact content hashes followed by normalized token-shingle near-duplicate comparison.</p></article>
+          <article class="card process"><h2>Quality and safety</h2><p>Reject malformed, generated, vendor, and secret-bearing files while recording the reason.</p></article>
+          <article class="card split"><h2>Decontaminate and split</h2><p>Remove configured evaluation matches, then reserve validation by repository before synthesis.</p><div class="meta"><span class="pill">no repo overlap</span><span class="pill">validation held out</span></div></article>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-label"><span class="step-number">3</span> Fork cleaned organic training set</div>
+        <div class="fork">
+          <div class="generation-shell">
+            <div class="generation-head"><h2>Eight independent generation branches</h2><span>bounded retries · concurrency = 2</span></div>
+            <div class="branches">
+              <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">0.25 × N</span><h3>SwallowCode rewrite</h3><p>Self-contained, idiomatic code with behavior preserved.</p></article>
+              <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">0.25 × N</span><h3>CodeDev</h3><p>Realistic feature, bug-fix, or behavior-change task with a solution.</p></article>
+              <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">0.25 × N</span><h3>CodeQA</h3><p>Code-grounded question and answer serialized as pretraining text.</p></article>
+              <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">1,000 Python</span><h3>CodeTrace</h3><p>Instrument, generate 3–5 tests, execute three times, and retain deterministic traces.</p></article>
+              <article class="branch gemma"><span class="model-name">CodeGemma 7B IT</span><span class="quota">0.25 × N</span><h3>SwallowCode rewrite</h3><p>The same method and quota, produced by the second model.</p></article>
+              <article class="branch gemma"><span class="model-name">CodeGemma 7B IT</span><span class="quota">0.25 × N</span><h3>CodeDev</h3><p>The same developer-task objective in an independent model branch.</p></article>
+              <article class="branch gemma"><span class="model-name">CodeGemma 7B IT</span><span class="quota">0.25 × N</span><h3>CodeQA</h3><p>Grounded QA converted to a continuous pretraining document.</p></article>
+              <article class="branch gemma"><span class="model-name">CodeGemma 7B IT</span><span class="quota">1,000 Python</span><h3>CodeTrace</h3><p>The same parent cohort and execution filter provide a paired model comparison.</p></article>
+            </div>
+          </div>
+          <aside class="bypass"><span class="route">Organic bypass</span><h2>Preserve cleaned code</h2><p>The cleaned training corpus bypasses generation and rejoins only after synthetic validation.</p><div class="count">N<small>organic training documents</small></div></aside>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-label"><span class="step-number">4</span> Validate synthetic output</div>
+        <div class="validation-grid">
+          <article class="check"><h3>Syntax and execution signals</h3><p>Language-aware checks record syntax validity separately from verified correctness and execution status.</p></article>
+          <article class="check"><h3>Deduplicate again</h3><p>Remove duplicates within branches, across branches, and against the organic corpus.</p></article>
+          <article class="check"><h3>Repeat decontamination</h3><p>Reject evaluation matches; retry and backfill within bounds. <span class="shortfall">Report remaining shortfalls.</span></p></article>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-label"><span class="step-number">5</span> Merge and publish</div>
+        <div class="finish">
+          <article class="card source"><h2>Organic</h2><p>Cleaned training corpus</p><span class="metric blue">N</span></article><div class="arrow">+</div>
+          <article class="card split"><h2>Accepted synthetic</h2><p>Six main branches plus paired CodeTrace</p><span class="metric purple">≈ 1.5N + ≤2,000</span></article><div class="arrow">→</div>
+          <article class="card output"><h2>Training mixture</h2><p>Versioned JSONL shards and manifest</p><span class="metric green">≈ 2.5N + ≤2,000</span></article>
+        </div>
+      </div>
+      <div class="footer"><span><strong>Manifest:</strong> counts, token estimates, languages, licenses, lineage, validation, and shortfalls</span><span><strong>Inference:</strong> deterministic mock mode or existing OpenAI-compatible endpoints</span></div>
+    </section>
+  </main>
+</body>
+</html>

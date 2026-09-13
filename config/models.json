@@ -1,0 +1,24 @@
+{
+  "models": {
+    "qwen_coder": {
+      "model_id": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
+      "access": "public",
+      "server_path": "/root/models/Qwen2.5-Coder-7B-Instruct-GGUF",
+      "local_path_env": "CODE_DATA_QWEN_MODEL_PATH",
+      "endpoint_env": "CODE_DATA_QWEN_ENDPOINT"
+    },
+    "codegemma": {
+      "model_id": "google/codegemma-7b-it",
+      "source": "https://huggingface.co/bartowski/codegemma-7b-it-GGUF",
+      "access": "huggingface_gated_google_gemma_license",
+      "server_path": "/root/models/codegemma-7b-it-GGUF",
+      "local_path_env": "CODE_DATA_CODEGEMMA_MODEL_PATH",
+      "endpoint_env": "CODE_DATA_CODEGEMMA_ENDPOINT"
+    }
+  },
+  "policy": {
+    "download_weights_automatically": false,
+    "allow_mock": true
+  }
+}
