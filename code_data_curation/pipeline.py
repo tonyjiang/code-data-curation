@@ -121,17 +121,6 @@ def cross_dataset_deduplicate(documents: Iterable[dict], organic: Iterable[dict]
     return kept, removed
 
 
-def repository_split(documents: Iterable[dict], validation_fraction: float = 0.2) -> tuple[list[dict], list[dict]]:
-    if not 0 <= validation_fraction < 1:
-        raise ValueError("validation_fraction must be in [0, 1)")
-    train, validation = [], []
-    for document in documents:
-        key = document.get("repo_id") or document.get("repo_path") or document["document_id"]
-        bucket = int(hashlib.sha256(str(key).encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
-        (validation if bucket < validation_fraction else train).append(document)
-    return train, validation
-
-
 def allocate_branch_quotas(n: int, branches: int = 6) -> list[int]:
     total = round(1.5 * n)
     base, remainder = divmod(total, branches)

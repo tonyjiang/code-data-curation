@@ -13,7 +13,6 @@ from .pipeline import (
     load_jsonl,
     near_deduplicate,
     quality_filter,
-    repository_split,
     select_branch_parents,
 )
 from .generation import generate_batch
@@ -51,11 +50,6 @@ def clean(documents: list[dict], output_dir: str = "") -> list[dict]:
 def drop_evaluation_matches(documents: list[dict], evaluation: list[dict]) -> list[dict]:
     kept, _ = decontaminate(documents, evaluation)
     return kept
-
-
-@task(cache=True, cache_version="v2")
-def split(documents: list[dict]) -> tuple[list[dict], list[dict]]:
-    return repository_split(documents)
 
 
 logger = logging.getLogger(__name__)
@@ -111,21 +105,18 @@ def combine_branches(
 def export(
     organic: list[dict], synthetic: list[dict], evaluation: list[dict],
     output_dir: str, codetrace_target_per_model: int,
-    validation: list[dict] = [], mode: str = "mock",
+    mode: str = "mock",
     post_generation_decontamination: bool = False,
 ) -> dict:
     clean_synthetic, contaminated = synthetic, []
     if post_generation_decontamination:
-        clean_synthetic, contaminated = decontaminate(synthetic, evaluation + validation)
+        clean_synthetic, contaminated = decontaminate(synthetic, evaluation)
     manifest = export_dataset(
         organic, clean_synthetic, output_dir,
         codetrace_target_per_model=codetrace_target_per_model,
     )
     write_audit(output_dir, "export-rejections", contaminated)
-    with (Path(output_dir) / "validation.jsonl").open("x", encoding="utf-8") as handle:
-        for row in validation:
-            handle.write(json.dumps(row) + "\n")
-    manifest.update(mode=mode, validation_documents=len(validation), evaluation_documents=len(evaluation), evaluation_configured=bool(evaluation), status="completed_with_shortfalls" if manifest["synthetic_shortfall_documents"] else "completed")
+    manifest.update(mode=mode, evaluation_documents=len(evaluation), evaluation_configured=bool(evaluation), status="completed_with_shortfalls" if manifest["synthetic_shortfall_documents"] else "completed")
     manifest.update(post_generation_deduplication=False, post_generation_decontamination=post_generation_decontamination, synthetic_contaminated=len(contaminated))
     (Path(output_dir) / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
@@ -144,15 +135,14 @@ def code_data_curation_workflow(
 ) -> dict:
     evaluation = load_evaluation(evaluation_path)
     organic = drop_evaluation_matches(clean(ingest(input_path, output_dir, mode), output_dir), evaluation)
-    train, _validation = split(organic)
     generated = combine_branches(
-        synthesize_branch(train, "qwen_coder", "swallowcode", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
-        synthesize_branch(train, "qwen_coder", "codedev", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
-        synthesize_branch(train, "qwen_coder", "codeqa", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
-        synthesize_branch(train, "codegemma", "swallowcode", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
-        synthesize_branch(train, "codegemma", "codedev", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
-        synthesize_branch(train, "codegemma", "codeqa", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
-        synthesize_branch(train, "qwen_coder", "codetrace", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
-        synthesize_branch(train, "codegemma", "codetrace", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(organic, "qwen_coder", "swallowcode", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(organic, "qwen_coder", "codedev", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(organic, "qwen_coder", "codeqa", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(organic, "codegemma", "swallowcode", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(organic, "codegemma", "codedev", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(organic, "codegemma", "codeqa", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(organic, "qwen_coder", "codetrace", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
+        synthesize_branch(organic, "codegemma", "codetrace", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
     )
-    return export(train, generated, evaluation, output_dir, codetrace_documents_per_model, _validation, mode, post_generation_decontamination)
+    return export(organic, generated, evaluation, output_dir, codetrace_documents_per_model, mode, post_generation_decontamination)

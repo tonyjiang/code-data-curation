@@ -15,7 +15,6 @@ from code_data_curation.pipeline import (
     load_jsonl,
     near_deduplicate,
     quality_filter,
-    repository_split,
     validate_generated,
 )
 
@@ -33,23 +32,21 @@ def main() -> int:
     clean, rejected = quality_filter(unique)
     eval_documents = load_jsonl(args.evaluation) if args.evaluation else []
     clean, contaminated_organic = decontaminate(clean, eval_documents)
-    train, validation = repository_split(clean)
     synthetic = generate_branches(
-        train, codetrace_limit=args.codetrace_documents_per_model
+        clean, codetrace_limit=args.codetrace_documents_per_model
     )
     valid, invalid = validate_generated(synthetic)
     contaminated = []
     if args.post_generation_decontamination:
-        valid, contaminated = decontaminate(valid, eval_documents + validation)
+        valid, contaminated = decontaminate(valid, eval_documents)
     manifest = export_dataset(
-        train, valid, args.output,
+        clean, valid, args.output,
         codetrace_target_per_model=args.codetrace_documents_per_model,
     )
     manifest.update({
         "input_documents": len(source),
         "quality_rejected": len(rejected),
         "organic_contaminated": len(contaminated_organic),
-        "validation_documents": len(validation),
         "synthetic_invalid": len(invalid),
         "synthetic_contaminated": len(contaminated),
         "post_generation_deduplication": False,

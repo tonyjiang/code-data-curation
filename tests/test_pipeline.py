@@ -7,7 +7,6 @@ from code_data_curation.pipeline import (
     exact_deduplicate,
     generate_branches,
     quality_filter,
-    repository_split,
     validate_generated,
 )
 from code_data_curation import workflow
@@ -27,11 +26,9 @@ def test_filters_secrets_vendor_and_duplicates():
     assert {r["rejection_reason"] for r in rejected} == {"secret", "vendor"}
 
 
-def test_decontamination_and_repository_split():
+def test_decontamination():
     train, removed = decontaminate([doc(1), doc(2)], [doc("eval", content="print(1)")])
     assert len(train) == 1 and removed[0]["rejection_reason"] == "evaluation_contamination"
-    a, b = repository_split([doc(i, repo=i) for i in range(20)])
-    assert {d["repo_id"] for d in a}.isdisjoint({d["repo_id"] for d in b})
 
 
 @pytest.mark.parametrize("audit", [False, True])

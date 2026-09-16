@@ -76,7 +76,7 @@ def test_trace_timeout_removes_container(monkeypatch):
     assert commands[-1][-1] == commands[-2][commands[-2].index("--name") + 1]
 
 
-def test_mock_flyte_exports_holdout_and_protects_directory(tmp_path, monkeypatch):
+def test_mock_flyte_retains_all_cleaned_documents_and_protects_directory(tmp_path, monkeypatch):
     from flytekit.core import local_cache
     monkeypatch.setattr(local_cache, "CACHE_LOCATION", str(tmp_path / "flyte-cache"))
     monkeypatch.setattr(local_cache.LocalTaskCache, "_initialized", False)
@@ -85,7 +85,11 @@ def test_mock_flyte_exports_holdout_and_protects_directory(tmp_path, monkeypatch
     output = tmp_path / "new-run"
     result = workflow.code_data_curation_workflow(input_path=str(source), output_dir=str(output), codetrace_documents_per_model=2)
     assert result["mode"] == "mock"
-    assert (output / "validation.jsonl").exists()
+    written = pipeline.load_jsonl(output / "train-00000.jsonl")
+    organic = [row for row in written if not row.get("method")]
+    assert {row["document_id"] for row in organic} == {str(i) for i in range(20)}
+    assert not (output / "validation.jsonl").exists()
+    assert "validation_documents" not in result
     assert (output / "quality-rejections.jsonl").exists()
     with pytest.raises(FileExistsError):
         workflow.ingest.task_function(str(source), str(output))

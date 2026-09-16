@@ -18,7 +18,6 @@ from code_data_curation.pipeline import (
     load_jsonl,
     near_deduplicate,
     quality_filter,
-    repository_split,
     select_branch_parents,
     validate_generated,
 )
@@ -62,9 +61,8 @@ def main() -> int:
 
     unique = near_deduplicate(exact_deduplicate(load_jsonl(args.input)))
     clean, quality_rejected = quality_filter(unique)
-    train, held_out = repository_split(clean)
     parents = select_branch_parents(
-        train, "qwen_coder", "codetrace", codetrace_limit=args.documents
+        clean, "qwen_coder", "codetrace", codetrace_limit=args.documents
     )
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
@@ -111,7 +109,6 @@ def main() -> int:
         "attempted_shared_parents": attempted,
         "unique_repositories": len({row.get("repo_id") or row.get("repo_path") for row in parents}),
         "quality_rejected_before_sampling": len(quality_rejected),
-        "repository_held_out_documents": len(held_out),
         "models": models,
         "paired_outcomes": {
             "both_succeeded": len(success["qwen_coder"] & success["codegemma"]),
