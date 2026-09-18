@@ -12,10 +12,10 @@ The workflow has these stages:
 2. Remove exact and near duplicates, malformed files, vendor/generated code, and secrets.
 3. Remove configured evaluation matches; retain all remaining organic documents for training.
 4. Generate synthetic data through eight branches: two models × four methods.
-5. Validate each branch and remove normalized exact duplicates across branches and against organic data.
+5. Validate each branch, dropping malformed, secret-bearing, and (for CodeTrace) untraced outputs.
 6. Merge accepted synthetic documents with organic training documents and export JSONL plus a manifest.
 
-See the [workflow diagram](artifacts/workflow.html) for the full graph.
+See the [workflow diagram](docs/workflow.html) for the full graph.
 
 ## Create the environment
 
@@ -189,23 +189,6 @@ pre-pulled image.
 
 ### CodeTrace experiment design
 
-#### What prior work establishes
-
-- [CodeAlchemy](https://arxiv.org/abs/2606.10087) instruments real files with
-  structured trace events, generates 3–5 test inputs, executes each file three
-  times in isolated sandboxes, and removes empty or inconsistent traces. It
-  retained about 1.3 million code/trace pairs from 4 million instrumented files.
-- Its CodeTrace-only ablation annealed a 3B base model on 10B tokens. CodeTrace
-  produced the strongest TraceEval result among individual CodeAlchemy components,
-  while mixed data preserved broader coding performance.
-- [CodeExecutor](https://arxiv.org/abs/2305.05383) treats trace prediction as a
-  pretraining objective and uses curriculum learning.
-- [NExT](https://arxiv.org/abs/2404.14662) conditions reasoning on observed runtime
-  states and filters examples by whether they lead to correct repairs.
-- [SemCoder](https://arxiv.org/abs/2406.01006) combines execution behavior with
-  higher-level semantic explanations and evaluates execution reasoning alongside
-  ordinary code generation.
-
 #### Registered comparison
 
 The cohort contains 1,000 cleaned Python files from at least 200 repositories.
@@ -221,8 +204,7 @@ an exact McNemar test. Call a model difference clear only when the two-sided
 points. This rule is registered before the real run.
 
 At 1,000 samples, an individual proportion has at worst about a 3.1-point 95%
-margin of error before repository clustering. The final analysis should also use
-repository-level bootstrap intervals.
+margin of error before repository clustering.
 
 #### Claim boundary
 
