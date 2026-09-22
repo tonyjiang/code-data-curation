@@ -39,11 +39,11 @@ def load_evaluation(path: str) -> list[dict]:
 
 @task(cache=False)
 def clean(documents: list[dict], output_dir: str = "") -> list[dict]:
-    accepted, rejected = quality_filter(documents)
-    unique = near_deduplicate(exact_deduplicate(accepted))
+    unique = near_deduplicate(exact_deduplicate(documents))
+    accepted, rejected = quality_filter(unique)
     if output_dir:
         write_audit(output_dir, "quality-rejections", rejected)
-    return unique
+    return accepted
 
 
 @task(cache=True, cache_version="review-v5")
@@ -57,7 +57,11 @@ logger = logging.getLogger(__name__)
 
 def write_audit(output_dir: str, name: str, rows: list[dict]) -> None:
     # Do not duplicate potentially secret-bearing source text in audit logs.
-    keys = ("document_id", "parent_document_id", "model", "method", "rejection_reason", "error")
+    keys = (
+        "document_id", "parent_document_id", "model", "method",
+        "quality_signals", "rejection_reason", "rejection_signal",
+        "rejection_value", "rejection_threshold", "error",
+    )
     with (Path(output_dir) / f"{name}.jsonl").open("x", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps({key: row[key] for key in keys if key in row}) + "\n")
@@ -134,7 +138,8 @@ def code_data_curation_workflow(
     post_generation_decontamination: bool = False,
 ) -> dict:
     evaluation = load_evaluation(evaluation_path)
-    organic = drop_evaluation_matches(clean(ingest(input_path, output_dir, mode), output_dir), evaluation)
+    filtered = clean(ingest(input_path, output_dir, mode), output_dir)
+    organic = drop_evaluation_matches(filtered, evaluation)
     generated = combine_branches(
         synthesize_branch(organic, "qwen_coder", "swallowcode", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),
         synthesize_branch(organic, "qwen_coder", "codedev", mode, generation_retries, generation_concurrency, codetrace_documents_per_model, output_dir),

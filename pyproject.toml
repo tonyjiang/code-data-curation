@@ -7,6 +7,7 @@ dependencies = [
     "flytekit",
     "huggingface-hub>=0.30,<1",
     "pyarrow>=15,<20",
+    "tree-sitter-language-pack>=1.18,<2",
 ]
 
 [tool.uv]

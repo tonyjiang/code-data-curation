@@ -10,15 +10,30 @@ def record(identifier, content="print(1)", **extra):
     return dict(document_id=str(identifier), content=content, language="Python", repo_id=str(identifier), **extra)
 
 
+def valid_python(identifier):
+    return f'''def transform_{identifier}(input_{identifier}, factor_{identifier}):
+    alpha_{identifier} = input_{identifier} + factor_{identifier}
+    beta_{identifier} = alpha_{identifier} * factor_{identifier}
+    gamma_{identifier} = beta_{identifier} - input_{identifier}
+    delta_{identifier} = gamma_{identifier} / factor_{identifier}
+    epsilon_{identifier} = delta_{identifier} + alpha_{identifier}
+    zeta_{identifier} = epsilon_{identifier} * beta_{identifier}
+    eta_{identifier} = zeta_{identifier} - gamma_{identifier}
+    theta_{identifier} = eta_{identifier} + delta_{identifier}
+    return theta_{identifier}
+'''
+
+
 def test_exact_dedup_uses_content_not_untrusted_ids():
     rows = [record(1, content_id="a"), record(2, content_id="b"), record(3, "print(2)", content_id="a")]
     assert [d["document_id"] for d in pipeline.exact_deduplicate(rows)] == ["1", "3"]
 
 
 def test_quality_checks_python_and_vendor_paths():
-    accepted, rejected = pipeline.quality_filter([record(1), record(2, "def bad(:"), record(3, file_path="src/vendor/util.py"), record(4, None)])
+    malformed = valid_python(2) + "def bad(:\n"
+    accepted, rejected = pipeline.quality_filter([record(1, valid_python(1)), record(2, malformed), record(3, file_path="src/vendor/util.py"), record(4, None)])
     assert len(accepted) == 1
-    assert {d["rejection_reason"] for d in rejected} == {"malformed_python", "vendor", "malformed"}
+    assert {d["rejection_reason"] for d in rejected} == {"parse_error", "vendor", "malformed"}
 
 
 def test_embedded_python_and_secret_validation():
@@ -81,13 +96,14 @@ def test_mock_flyte_retains_all_cleaned_documents_and_protects_directory(tmp_pat
     monkeypatch.setattr(local_cache, "CACHE_LOCATION", str(tmp_path / "flyte-cache"))
     monkeypatch.setattr(local_cache.LocalTaskCache, "_initialized", False)
     source = tmp_path / "input.jsonl"
-    source.write_text("\n".join(json.dumps(record(i, f"print({i})")) for i in range(20)))
+    source.write_text("\n".join(json.dumps(record(i, valid_python(i))) for i in range(20)))
     output = tmp_path / "new-run"
     result = workflow.code_data_curation_workflow(input_path=str(source), output_dir=str(output), codetrace_documents_per_model=2)
     assert result["mode"] == "mock"
     written = pipeline.load_jsonl(output / "train-00000.jsonl")
     organic = [row for row in written if not row.get("method")]
     assert {row["document_id"] for row in organic} == {str(i) for i in range(20)}
+    assert all("quality_signals" in row for row in organic)
     assert not (output / "validation.jsonl").exists()
     assert "validation_documents" not in result
     assert (output / "quality-rejections.jsonl").exists()

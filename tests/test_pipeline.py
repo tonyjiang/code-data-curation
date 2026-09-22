@@ -18,8 +18,22 @@ def doc(i, language="Python", repo=None, content=None):
     return {"document_id": str(i), "content_id": str(i), "content": content or f"print({i})", "language": language, "repo_id": repo or i}
 
 
+def valid_python(i=1):
+    return f'''def transform_{i}(input_{i}, factor_{i}):
+    alpha_{i} = input_{i} + factor_{i}
+    beta_{i} = alpha_{i} * factor_{i}
+    gamma_{i} = beta_{i} - input_{i}
+    delta_{i} = gamma_{i} / factor_{i}
+    epsilon_{i} = delta_{i} + alpha_{i}
+    zeta_{i} = epsilon_{i} * beta_{i}
+    eta_{i} = zeta_{i} - gamma_{i}
+    theta_{i} = eta_{i} + delta_{i}
+    return theta_{i}
+'''
+
+
 def test_filters_secrets_vendor_and_duplicates():
-    source = [doc(1), doc(1), doc(2, content="password = 'abcdefghijk'"), {**doc(3), "is_vendor": True}]
+    source = [doc(1, content=valid_python()), doc(1, content=valid_python()), doc(2, content="password = 'abcdefghijk'"), {**doc(3), "is_vendor": True}]
     unique = exact_deduplicate(source)
     accepted, rejected = quality_filter(unique)
     assert len(accepted) == 1

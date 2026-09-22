@@ -9,11 +9,11 @@ mixture. Mock mode is deterministic and requires no model inference.
 The workflow has these stages:
 
 1. Ingest source documents with repository, license, file, and content identifiers.
-2. Remove exact and near duplicates, malformed files, vendor/generated code, and secrets.
-3. Remove configured evaluation matches; retain all remaining organic documents for training.
-4. Generate synthetic data through eight branches: two models × four methods.
-5. Validate each branch, dropping malformed, secret-bearing, and (for CodeTrace) untraced outputs.
-6. Merge accepted synthetic documents with organic training documents and export JSONL plus a manifest.
+2. Remove exact and near duplicates.
+3. Apply deterministic code-quality filters and remove malformed, vendor/generated, secret-bearing, or low-signal files.
+4. Remove configured evaluation matches; retain all remaining organic documents for training.
+5. Generate synthetic data through eight branches: two models × four methods.
+6. Validate each branch, then merge accepted synthetic documents with organic training documents and export JSONL plus a manifest.
 
 See the [workflow diagram](docs/workflow.html) for the full graph.
 
@@ -53,6 +53,21 @@ cap prevents a few large repositories from dominating the cohort; source files
 themselves are never truncated. The adjacent manifest records the exact dataset
 revision, shard path and size, retrieval time, counts, and any shortfalls. Increase
 `--max-shards` if a shard does not meet the requested minimum.
+
+## OpenCoder-inspired filtering
+
+The filter adapts a focused subset of the MIT-licensed
+[OpenCoder data-filtering rules](https://github.com/OpenCoder-llm/opc_data_filtering)
+for this repository. It measures document size, line and token statistics,
+repetition, character composition, comments, encoded data, long strings, and
+Tree-sitter parse errors. Tree-sitter parsing covers all 15 languages in the
+sample. Accepted records retain every `quality_signals` value; rejected records
+also retain the failing signal, observed value, and threshold in the audit log.
+
+This is a local adaptation rather than the complete upstream rule set. Generated
+markers, vendor paths, and likely secrets remain explicit local checks. A neural
+scoring stage should only be added after a separate matched-budget evaluation
+shows that it improves downstream model quality enough to justify GPU cost.
 
 ## Synthetic generation methods
 
