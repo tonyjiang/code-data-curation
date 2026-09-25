@@ -126,3 +126,27 @@ def test_workflow_diagram_names_and_attributes_the_three_cleaning_steps():
     assert "https://github.com/OpenCoder-llm/opc_data_filtering" in sequence
     assert "CPU · Batch" in sequence
     assert "Quality score" not in sequence
+
+
+def test_workflow_diagram_defines_document_output_and_token_ablation():
+    html = Path("docs/workflow.html").read_text(encoding="utf-8")
+    assert "Published corpus" in html
+    assert "the training sampler chooses the token mixture" in html
+    assert 'aria-label="Synthetic token mixture ablation"' in html
+    assert html.index('aria-label="Synthetic token mixture ablation"') > html.index("</section>")
+    assert "outside the Flyte data-curation DAG" in html
+    assert "Continued-pretraining (CPT) mixture ablation" in html
+    assert "determine whether synthetic code improves a pretrained code model" in html
+    assert "continue causal next-token pretraining" in html
+    assert "changing only the synthetic-data percentage" in html
+    assert "same number of training tokens and the same compute budget" in html
+    assert all(term not in html for term in ("SFT", "DPO", "RLVR"))
+    assert "tokenizer" + "-token" not in html
+    assert all(f"{ratio}% synthetic" in html for ratio in (0, 30, 60, 100))
+    assert "without repeating organic tokens" in html
+    assert "best synthetic arm with equal total token budgets" in html
+    assert all(text not in html for text in (
+        "15 languages", "concurrency = 2", "1,000 Python", "≤2,000",
+        "1.05B", "2.10B",
+    ))
+    assert all(text in html for text in ("N documents", "S documents", "N + S documents"))

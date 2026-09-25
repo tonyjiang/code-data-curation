@@ -77,11 +77,25 @@
     .finish .arrow { color: #7f8ba1; font-size: 24px; font-weight: 800; }
     .metric { display: block; margin-top: 10px; font-size: 22px; font-weight: 850; }
     .metric.blue { color: var(--blue); } .metric.purple { color: var(--purple); } .metric.green { color: var(--green); }
+    .ablation { margin-top: 24px; padding: 20px; border: 1px solid #34684a; border-radius: 16px; background: #0d2118; box-shadow: var(--shadow); }
+    .experiment-label { display: block; margin-bottom: 10px; color: var(--green); font-size: 11px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+    .ablation-head { display: flex; justify-content: space-between; gap: 18px; align-items: baseline; margin-bottom: 13px; }
+    .ablation h2 { margin: 0; font-size: 20px; }
+    .ablation-head p, .ablation-note { margin: 0; color: var(--muted); font-size: 12px; }
+    .ablation-context { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+    .ablation-context p { margin: 0; padding: 12px; border-radius: 9px; background: rgba(7,11,19,.38); color: #bdc8da; font-size: 12px; }
+    .ablation-context strong { color: var(--ink); }
+    .mixtures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .mixture { padding: 12px; border: 1px solid #34684a; border-radius: 10px; background: rgba(7,11,19,.38); }
+    .mixture strong { display: block; color: var(--green); font-size: 16px; }
+    .mixture span { color: #bdc8da; font-size: 12px; }
+    .ablation-note { margin-top: 12px; }
     .footer { display: flex; justify-content: space-between; gap: 20px; padding: 16px 30px; background: #080d16; color: #aeb9ca; font-size: 12px; }
     .footer strong { color: #fff; }
     @media (max-width: 900px) {
       header { align-items: flex-start; flex-direction: column; }
-      .row, .sequence, .branches, .validation-grid, .fork, .finish { grid-template-columns: 1fr; }
+      .row, .sequence, .branches, .validation-grid, .fork, .finish, .mixtures, .ablation-context { grid-template-columns: 1fr; }
+      .ablation-head { align-items: flex-start; flex-direction: column; }
       .sequence .arrow, .finish .arrow { transform: rotate(90deg); text-align: center; }
       .stage { padding: 24px 18px; } .footer { flex-direction: column; padding: 16px 18px; }
     }
@@ -94,7 +108,7 @@
       <div class="mode">Mock locally · endpoints for real inference</div>
     </header>
     <aside class="compute-legend" aria-label="Production compute assignments">
-      <p><strong>Production compute · trillions of tokens.</strong> Badges show proposed execution backends at production scale; sample sizes, quotas, and concurrency below describe the toy workflow. Each badge classifies the job: CPU · Spark uses Spark CPU workers; CPU · Batch uses Flyte-managed CPU workers outside Spark; GPU · Ray uses Ray-managed GPU inference workers. GPU jobs may also include CPU preprocessing or validation.</p>
+      <p><strong>Production compute · trillions of tokens.</strong> Badges show execution backends at production scale. CPU · Spark uses Spark CPU workers; CPU · Batch uses Flyte-managed CPU workers outside Spark; GPU · Ray uses Ray-managed GPU inference workers. GPU jobs may also include CPU preprocessing or validation.</p>
       <ul>
         <li><span class="compute spark">CPU · Spark</span> CPU batch scans, joins, grouping, and sharded writes</li>
         <li><span class="compute cpu-batch">CPU · Batch</span> Flyte-managed, independent CPU jobs</li>
@@ -105,7 +119,7 @@
       <div class="stage">
         <div class="stage-label"><span class="step-number">1</span> Acquire and preserve</div>
         <div class="row single">
-          <article class="card source"><h2>Ingest The Stack v3 sample</h2><p>Stream a bounded, language-stratified corpus and preserve source, repository, commit, license, language, file, content, and document identifiers for lineage.</p><div class="meta"><span class="pill">15 languages</span><span class="pill">revision pinned</span><span class="pill">repository-aware</span><span class="pill">license retained</span></div><div class="compute-tags" aria-label="Production compute"><span class="compute cpu-batch" title="Independent shard downloads, decoding, and extraction on Flyte-managed CPU workers">CPU · Batch</span></div></article>
+          <article class="card source"><h2>Ingest source corpus</h2><p>Stream a language-stratified corpus and preserve source, repository, commit, license, language, file, content, and document identifiers for lineage.</p><div class="meta"><span class="pill">multilingual</span><span class="pill">revision pinned</span><span class="pill">repository-aware</span><span class="pill">license retained</span></div><div class="compute-tags" aria-label="Production compute"><span class="compute cpu-batch" title="Independent shard downloads, decoding, and extraction on Flyte-managed CPU workers">CPU · Batch</span></div></article>
         </div>
       </div>
       <div class="stage">
@@ -113,7 +127,7 @@
         <div class="sequence" aria-label="Sequential cleaning steps">
           <article class="card process"><h2>Deduplicate</h2><p>Exact content hashes followed by normalized token-shingle near-duplicate comparison.</p><div class="compute-tags" aria-label="Production compute"><span class="compute spark" title="Production CPU batch processing on Spark">CPU · Spark</span></div></article>
           <div class="arrow" aria-hidden="true">→</div>
-          <article class="card process"><h2>Filter · OpenCoder-inspired</h2><p>Apply adapted <a href="https://github.com/OpenCoder-llm/opc_data_filtering">OpenCoder rules</a>: general and language-aware structural signals across all 15 languages, plus generated, vendor, and secret checks. Record every signal and rejection threshold.</p><div class="compute-tags" aria-label="Production compute"><span class="compute cpu-batch" title="Production per-document parsing and deterministic checks on Flyte-managed CPU workers">CPU · Batch</span></div></article>
+          <article class="card process"><h2>Filter · OpenCoder-inspired</h2><p>Apply adapted <a href="https://github.com/OpenCoder-llm/opc_data_filtering">OpenCoder rules</a>: general and language-aware structural signals across supported languages, plus generated, vendor, and secret checks. Record every signal and rejection threshold.</p><div class="compute-tags" aria-label="Production compute"><span class="compute cpu-batch" title="Production per-document parsing and deterministic checks on Flyte-managed CPU workers">CPU · Batch</span></div></article>
           <div class="arrow" aria-hidden="true">→</div>
           <article class="card split"><h2>Decontaminate</h2><p>Remove documents matching configured evaluation data.</p><div class="compute-tags" aria-label="Production compute"><span class="compute spark" title="Match corpus records against evaluation data on Spark">CPU · Spark</span></div></article>
         </div>
@@ -122,17 +136,17 @@
         <div class="stage-label"><span class="step-number">3</span> Fork cleaned organic training set</div>
         <div class="fork">
           <div class="generation-shell">
-            <div class="generation-head"><h2>Eight branches: generate + validate</h2><span>bounded retries · concurrency = 2</span></div>
+            <div class="generation-head"><h2>Eight branches: generate + validate</h2><span>bounded retries · managed concurrency</span></div>
             <p class="generation-loop">Each branch: generate → validate → accept or retry. Parse Python where supported; CodeTrace also checks execution and repeatability. Syntax, execution, and correctness are recorded separately; unchecked syntax remains unknown.</p>
             <div class="branches">
               <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">0.25 × N</span><h3>SwallowCode rewrite</h3><p>Self-contained, idiomatic code with behavior preserved.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
               <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">0.25 × N</span><h3>CodeDev</h3><p>Realistic feature, bug-fix, or behavior-change task with a solution.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
               <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">0.25 × N</span><h3>CodeQA</h3><p>Code-grounded question and answer serialized as pretraining text.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
-              <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">1,000 Python</span><h3>CodeTrace · execution traces</h3><p>Instrument Python, generate 3–5 tests, execute three times, and retain deterministic runtime events.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
+              <article class="branch qwen"><span class="model-name">Qwen2.5-Coder 7B</span><span class="quota">Python cohort</span><h3>CodeTrace · execution traces</h3><p>Instrument Python, generate tests, repeat execution, and retain deterministic runtime events.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
               <article class="branch gemma"><span class="model-name">CodeGemma 7B IT</span><span class="quota">0.25 × N</span><h3>SwallowCode rewrite</h3><p>The same method and quota, produced by the second model.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
               <article class="branch gemma"><span class="model-name">CodeGemma 7B IT</span><span class="quota">0.25 × N</span><h3>CodeDev</h3><p>The same developer-task objective in an independent model branch.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
               <article class="branch gemma"><span class="model-name">CodeGemma 7B IT</span><span class="quota">0.25 × N</span><h3>CodeQA</h3><p>Grounded QA converted to a continuous pretraining document.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
-              <article class="branch gemma"><span class="model-name">CodeGemma 7B IT</span><span class="quota">1,000 Python</span><h3>CodeTrace · execution traces</h3><p>The same parent cohort and deterministic execution-trace filter provide a paired model comparison.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
+              <article class="branch gemma"><span class="model-name">CodeGemma 7B IT</span><span class="quota">Python cohort</span><h3>CodeTrace · execution traces</h3><p>The same parent cohort and deterministic execution-trace filter provide a paired model comparison.</p><div class="compute-tags" aria-label="Production compute"><span class="compute gpu" title="Generation: batched model inference on Ray-managed GPU workers">GPU · Ray</span></div></article>
             </div>
           </div>
           <aside class="bypass"><span class="route">Organic bypass</span><h2>Preserve cleaned code</h2><p>The cleaned training corpus bypasses generation and rejoins only after synthetic validation.</p><div class="count">N<small>organic training documents</small></div></aside>
@@ -145,13 +159,28 @@
       <div class="stage">
         <div class="stage-label"><span class="step-number">5</span> Merge and publish</div>
         <div class="finish">
-          <article class="card source"><h2>Organic</h2><p>Cleaned training corpus</p><span class="metric blue">N</span></article><div class="arrow">+</div>
-          <article class="card split"><h2>Accepted synthetic</h2><p>Six main branches plus paired CodeTrace</p><span class="metric purple">≈ 1.5N + ≤2,000</span></article><div class="arrow">→</div>
-          <article class="card output"><h2>Training mixture</h2><p>Versioned JSONL shards and manifest</p><span class="metric green">≈ 2.5N + ≤2,000</span><div class="compute-tags" aria-label="Production compute"><span class="compute spark" title="Production CPU batch processing on Spark">CPU · Spark</span></div></article>
+          <article class="card source"><h2>Organic</h2><p>Cleaned training corpus</p><span class="metric blue">N documents</span></article><div class="arrow">+</div>
+          <article class="card split"><h2>Accepted synthetic</h2><p>All accepted generation branches</p><span class="metric purple">S documents</span></article><div class="arrow">→</div>
+          <article class="card output"><h2>Published corpus</h2><p>Preserve every accepted record in versioned JSONL shards and a manifest; the training sampler chooses the token mixture.</p><span class="metric green">N + S documents</span><div class="compute-tags" aria-label="Production compute"><span class="compute spark" title="Production CPU batch processing on Spark">CPU · Spark</span></div></article>
         </div>
       </div>
       <div class="footer"><span><strong>Manifest:</strong> counts, token estimates, languages, licenses, lineage, validation, and shortfalls</span><span><strong>Inference:</strong> deterministic mock mode or existing OpenAI-compatible endpoints</span></div>
     </section>
+    <aside class="ablation" aria-label="Synthetic token mixture ablation">
+      <span class="experiment-label">Downstream model validation · outside the Flyte data-curation DAG</span>
+      <div class="ablation-head"><h2>Continued-pretraining (CPT) mixture ablation</h2></div>
+      <div class="ablation-context">
+        <p><strong>Purpose:</strong> determine whether synthetic code improves a pretrained code model and identify how much curated organic data it can profitably replace.</p>
+        <p><strong>Ablation:</strong> continue causal next-token pretraining from the same base checkpoint while changing only the synthetic-data percentage. Give every arm the same number of training tokens and the same compute budget, so score differences measure the mixture’s effect.</p>
+      </div>
+      <div class="mixtures">
+        <div class="mixture"><strong>0% synthetic</strong><span>100% curated organic · control</span></div>
+        <div class="mixture"><strong>30% synthetic</strong><span>70% curated organic</span></div>
+        <div class="mixture"><strong>60% synthetic</strong><span>40% curated organic</span></div>
+        <div class="mixture"><strong>100% synthetic</strong><span>Boundary arm</span></div>
+      </div>
+      <p class="ablation-note"><strong>Decision:</strong> use nested, source-matched cohorts without repeating organic tokens, then continue the organic control and best synthetic arm with equal total token budgets.</p>
+    </aside>
   </main>
 </body>
 </html>
